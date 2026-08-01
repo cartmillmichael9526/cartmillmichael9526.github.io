@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ops Manual — Warehouse Floor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#14181D;
+    --panel:#1E242B;
+    --panel-raised:#262E37;
+    --border:#333D48;
+    --text:#EDEFF2;
+    --muted:#8B96A3;
+    --amber:#E7A33E;
+    --amber-dim:#8A6526;
+    --teal:#4FAE9B;
+    --red:#D9614F;
+    --radius:3px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    line-height:1.5;
+    min-height:100vh;
+  }
+  ::selection{background:var(--amber);color:#14181D;}
+
+  /* ---- barcode signature strip ---- */
+  .barcode{
+    display:flex;align-items:stretch;gap:2px;height:14px;opacity:.85;
+  }
+  .barcode span{display:block;width:2px;background:currentColor;}
+  .barcode span:nth-child(3n){width:3px;}
+  .barcode span:nth-child(5n){width:1px;}
+
+  /* ---- layout ---- */
+  .app{display:flex;min-height:100vh;}
+
+  /* ---- sidebar: label rack ---- */
+  .sidebar{
+    width:248px;flex:none;background:var(--panel);
+    border-right:1px solid var(--border);
+    display:flex;flex-direction:column;
+    position:sticky;top:0;height:100vh;
+  }
+  .brand{
+    padding:22px 18px 16px;border-bottom:1px dashed var(--border);
+  }
+  .brand .tag{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;
+    color:var(--amber);text-transform:uppercase;margin-bottom:6px;
+  }
+  .brand h1{
+    font-family:'Space Grotesk',sans-serif;font-size:19px;margin:0 0 10px;
+    line-height:1.15;
+  }
+  .brand .barcode{color:var(--muted);}
+
+  nav{flex:1;overflow-y:auto;padding:12px 0;}
+  .nav-item{
+    display:flex;align-items:center;gap:10px;
+    padding:10px 18px;cursor:pointer;color:var(--muted);
+    border-left:2px solid transparent;
+    font-size:13.5px;
+    transition:background .12s,color .12s,border-color .12s;
+    user-select:none;
+  }
+  .nav-item:hover{background:var(--panel-raised);color:var(--text);}
+  .nav-item.active{
+    color:var(--text);border-left-color:var(--amber);background:var(--panel-raised);
+  }
+  .nav-item .bin{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber-dim);
+    border:1px solid var(--border);border-radius:2px;padding:1px 4px;min-width:26px;text-align:center;
+  }
+  .nav-item.active .bin{color:var(--amber);border-color:var(--amber-dim);}
+
+  .sidebar-foot{
+    padding:14px 18px;border-top:1px dashed var(--border);
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted);
+  }
+
+  /* ---- main ---- */
+  main{flex:1;min-width:0;padding:36px 44px 80px;max-width:920px;}
+  .section{display:none;}
+  .section.active{display:block;animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+  .section-head{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:26px;
+  }
+  .section-head .eyebrow{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber);
+    letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px;
+  }
+  .section-head h2{font-family:'Space Grotesk',sans-serif;font-size:26px;margin:0;}
+  .section-head .barcode{color:var(--border);height:20px;}
+
+  /* ---- ticket/label card ---- */
+  .ticket{
+    background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    position:relative;margin-bottom:16px;
+  }
+  .ticket-head{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:10px 16px;border-bottom:1px dashed var(--border);
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);
+  }
+  .ticket-body{padding:16px;}
+  .ticket::before,.ticket::after{
+    content:"";position:absolute;width:10px;height:10px;background:var(--bg);
+    border:1px solid var(--border);border-radius:50%;top:34px;
+  }
+  .ticket::before{left:-6px;}
+  .ticket::after{right:-6px;}
+
+  ul.tasklist{list-style:none;margin:0;padding:0;}
+  ul.tasklist li{
+    display:flex;gap:10px;align-items:flex-start;padding:9px 0;
+    border-bottom:1px solid var(--border);font-size:13.5px;
+  }
+  ul.tasklist li:last-child{border-bottom:none;}
+  ul.tasklist li .dot{
+    width:5px;height:5px;border-radius:50%;background:var(--amber);margin-top:7px;flex:none;
+  }
+  ul.tasklist li b{color:var(--text);}
+  ul.tasklist li .note{color:var(--muted);display:block;font-size:12.5px;margin-top:2px;}
+
+  .pill{
+    display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+    padding:2px 7px;border-radius:2px;border:1px solid var(--border);color:var(--muted);
+    margin-left:8px;
+  }
+  .pill.teal{color:var(--teal);border-color:#2c5c53;}
+  .pill.red{color:var(--red);border-color:#7a3128;}
+  .pill.amber{color:var(--amber);border-color:var(--amber-dim);}
+
+  /* ---- process flow ---- */
+  .flow{display:flex;flex-direction:column;gap:0;margin:6px 0 0;}
+  .flow-step{
+    display:flex;gap:14px;padding:14px 0;border-bottom:1px dashed var(--border);
+  }
+  .flow-step:last-child{border-bottom:none;}
+  .flow-num{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--bg);
+    background:var(--amber);width:24px;height:24px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;flex:none;font-weight:600;
+  }
+  .flow-step h4{margin:0 0 3px;font-size:14px;font-family:'Space Grotesk',sans-serif;}
+  .flow-step p{margin:0;color:var(--muted);font-size:13px;}
+
+  /* ---- grid ---- */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media (max-width:720px){.grid2{grid-template-columns:1fr;}}
+
+  .stat{
+    font-family:'IBM Plex Mono',monospace;font-size:28px;color:var(--amber);
+  }
+  .stat-label{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;}
+
+  /* ---- how-to accordion ---- */
+  .howto{
+    background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    margin-bottom:10px;overflow:hidden;
+  }
+  .howto summary{
+    padding:13px 16px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:14.5px;
+    display:flex;justify-content:space-between;align-items:center;list-style:none;
+  }
+  .howto summary::-webkit-details-marker{display:none;}
+  .howto summary:after{content:"+";color:var(--amber);font-size:18px;font-family:monospace;}
+  .howto[open] summary:after{content:"–";}
+  .howto .howto-body{
+    padding:0 16px 16px;color:var(--muted);border-top:1px dashed var(--border);
+  }
+  .howto .howto-body{padding-top:12px;}
+  .howto textarea{
+    width:100%;min-height:90px;background:var(--bg);border:1px solid var(--border);
+    color:var(--text);font-family:'Inter',sans-serif;font-size:13px;padding:10px;
+    border-radius:2px;resize:vertical;
+  }
+  .howto-meta{display:flex;justify-content:space-between;align-items:center;margin-top:8px;}
+  .howto-meta .save-hint{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+  .del-btn{
+    background:none;border:1px solid var(--border);color:var(--muted);
+    padding:4px 9px;border-radius:2px;cursor:pointer;font-size:11px;font-family:'IBM Plex Mono',monospace;
+  }
+  .del-btn:hover{border-color:var(--red);color:var(--red);}
+
+  .add-row{display:flex;gap:8px;margin-top:14px;}
+  .add-row input{
+    flex:1;background:var(--panel);border:1px solid var(--border);color:var(--text);
+    padding:9px 12px;border-radius:2px;font-family:'Inter',sans-serif;font-size:13px;
+  }
+  .add-row input:focus{outline:none;border-color:var(--amber-dim);}
+  .btn{
+    background:var(--amber);color:#1a1305;border:none;padding:9px 16px;border-radius:2px;
+    font-weight:600;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif;
+    white-space:nowrap;
+  }
+  .btn:hover{background:#f0b358;}
+  .btn.ghost{background:none;border:1px solid var(--border);color:var(--text);}
+  .btn.ghost:hover{border-color:var(--amber-dim);color:var(--amber);}
+
+  /* ---- kanban ---- */
+  .board{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  @media (max-width:820px){.board{grid-template-columns:1fr;}}
+  .col{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);min-height:120px;}
+  .col-head{
+    padding:10px 14px;border-bottom:1px solid var(--border);
+    font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;
+  }
+  .col-head .count{color:var(--amber);}
+  .col-body{padding:10px;display:flex;flex-direction:column;gap:8px;min-height:60px;}
+  .card{
+    background:var(--panel-raised);border:1px solid var(--border);border-radius:2px;
+    padding:10px 12px;font-size:13px;cursor:grab;position:relative;
+  }
+  .card:active{cursor:grabbing;}
+  .card .card-x{
+    position:absolute;top:6px;right:8px;color:var(--muted);cursor:pointer;font-size:12px;
+  }
+  .card .card-x:hover{color:var(--red);}
+  .card-text{padding-right:16px;}
+  .card-footer{display:flex;justify-content:space-between;align-items:center;margin-top:6px;}
+  .note-toggle{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber-dim);
+    cursor:pointer;border:none;background:none;padding:0;
+  }
+  .note-toggle:hover{color:var(--amber);}
+  .note-toggle.has-note{color:var(--amber);}
+  .card-notes{
+    margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);
+  }
+  .card-notes textarea{
+    width:100%;min-height:60px;background:var(--bg);border:1px solid var(--border);
+    color:var(--text);font-family:'Inter',sans-serif;font-size:12px;padding:8px;
+    border-radius:2px;resize:vertical;
+  }
+  .card-notes .save-hint{
+    font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace;margin-top:4px;display:block;
+  }
+  .col-body.dragover{background:rgba(231,163,62,.06);outline:1px dashed var(--amber-dim);}
+  .col-add{padding:8px 10px;display:flex;gap:6px;border-top:1px dashed var(--border);}
+  .col-add input{
+    flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);
+    padding:6px 8px;font-size:12px;border-radius:2px;
+  }
+  .col-add button{
+    background:none;border:1px solid var(--border);color:var(--amber);border-radius:2px;
+    padding:0 10px;cursor:pointer;font-size:14px;
+  }
+
+  .todo-flag{
+    background:rgba(217,97,79,.08);border:1px solid #7a3128;border-radius:2px;
+    padding:12px 14px;color:#e9b3aa;font-size:12.5px;margin-top:16px;
+    font-family:'IBM Plex Mono',monospace;
+  }
+
+  .origin-note{
+    margin-top:40px;padding-top:16px;border-top:1px dashed var(--border);
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);
+  }
+
+  ::-webkit-scrollbar{width:9px;}
+  ::-webkit-scrollbar-track{background:var(--bg);}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px;}
+
+  @media (max-width:900px){
+    .app{flex-direction:column;}
+    .sidebar{width:100%;height:auto;position:relative;flex-direction:row;overflow-x:auto;}
+    .brand{display:none;}
+    nav{display:flex;padding:0;}
+    .nav-item{border-left:none;border-bottom:2px solid transparent;white-space:nowrap;}
+    .nav-item.active{border-bottom-color:var(--amber);}
+    .sidebar-foot{display:none;}
+    main{padding:24px 18px 60px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="brand">
+      <div class="tag">Internal · Staff Only</div>
+      <h1>Ops Manual</h1>
+      <div class="barcode" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+    <nav id="nav">
+      <div class="nav-item active" data-target="daily"><span class="bin">01</span> Daily Tasks</div>
+      <div class="nav-item" data-target="fulfilment"><span class="bin">02</span> Fulfilment</div>
+      <div class="nav-item" data-target="knowledge"><span class="bin">03</span> Pricing &amp; Tax</div>
+      <div class="nav-item" data-target="frustrations"><span class="bin">04</span> Frustrations</div>
+      <div class="nav-item" data-target="howto"><span class="bin">05</span> How-Tos</div>
+      <div class="nav-item" data-target="planning"><span class="bin">06</span> Project Planning</div>
+      <div class="nav-item" data-target="gshopping"><span class="bin">07</span> Google Shopping</div>
+      <div class="nav-item" data-target="metaads"><span class="bin">08</span> Meta Ads</div>
+      <div class="nav-item" data-target="inventory"><span class="bin">09</span> Inventory Processes</div>
+      <div class="nav-item" data-target="content"><span class="bin">10</span> Content Strategy</div>
+    </nav>
+    <div class="sidebar-foot">Saved locally in this browser<br>v1 · started 28 Jul 2026</div>
+  </div>
+
+  <main>
+
+    <!-- 01 DAILY TASKS -->
+    <section class="section active" id="daily">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Bin 01</div>
+          <h2>Daily Tasks</h2>
+        </div>
+        <div class="barcode" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+
+      <div class="ticket">
+        <div class="ticket-head"><span>ROUTINE — RUN EVERY SHIFT</span><span>#DAILY</span></div>
+        <div class="ticket-body">
+          <ul class="tasklist">
+            <li><span class="dot"></span><div><b>Check orders</b> — online orders queue<span class="note">First job of the day.</span></div></li>
+            <li><span class="dot"></span><div><b>Check invoices &amp; delivery notes</b><span class="note">Match against incoming stock.</span></div></li>
+            <li><span class="dot"></span><div><b>Essential Pre-Order</b><span class="note">Place products into the campaign for pre-order.</span></div></li>
+            <li><span class="dot"></span><div><b>Landing page forms</b><span class="note">Review submissions / build new ones as needed.</span></div></li>
+            <li><span class="dot"></span><div><b>Rivo — loyalty program</b> <span class="pill teal">2p per £1 spent</span></div></li>
+            <li><span class="dot"></span><div><b>Bundles</b><span class="note">Start planning bundles ahead of peak season.</span></div></li>
+            <li><span class="dot"></span><div><b>Essential Upsell</b><span class="note">Review opportunities for new upsells.</span></div></li>
+            <li><span class="dot"></span><div><b>Happy appointments (gait analysis)</b><span class="note">These land in the orders queue. Post to group chat and assign to whoever's taking it — Dermot or Colleen.</span></div></li>
+            <li><span class="dot"></span><div><b>Duplicate barcode scanner</b><span class="note">Check / resolve duplicates.</span></div></li>
+            <li><span class="dot"></span><div><b>Purchase order manager</b><span class="note">Create a PO → check stock against it on arrival → if it doesn't match, contact the supplier.</span></div></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="ticket">
+          <div class="ticket-head"><span>WEEKLY</span><span>#FRI</span></div>
+          <div class="ticket-body">
+            <ul class="tasklist">
+              <li><span class="dot"></span><div><b>Friday — accounts reports for Alan</b><span class="note">Run the reports, check figures before sending.</span></div></li>
+            </ul>
+          </div>
+        </div>
+        <div class="ticket">
+          <div class="ticket-head"><span>STOCK TARGET</span><span>#REF</span></div>
+          <div class="ticket-body">
+            <div class="stat">£700k</div>
+            <div class="stat-label">Sweet spot for stock on hand</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 FULFILMENT -->
+    <section class="section" id="fulfilment">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Bin 02</div>
+          <h2>Fulfilment Process</h2>
+        </div>
+        <div class="barcode" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+
+      <div class="ticket">
+        <div class="ticket-head"><span>STANDARD ORDER — STEP BY STEP</span><span>#DPD</span></div>
+        <div class="ticket-body">
+          <div class="flow">
+            <div class="flow-step">
+              <div class="flow-num">1</div>
+              <div><h4>Print packing slip</h4><p>Pull the order and print the slip before picking.</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">2</div>
+              <div><h4>DPD fulfilment</h4><p>Fulfil the order through DPD.</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">3</div>
+              <div><h4>View label</h4><p>Label &gt; Prints &gt; Designer ZPL.</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">4</div>
+              <div><h4>Attach &amp; dispatch</h4><p>Attach label, hand off for collection/despatch.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="ticket">
+          <div class="ticket-head"><span>CLICK &amp; COLLECT</span><span>#STORE</span></div>
+          <div class="ticket-body">
+            <p style="margin:0;color:var(--muted);">Pick up in store — use the receipt in store as proof of collection.</p>
+          </div>
+        </div>
+        <div class="ticket">
+          <div class="ticket-head"><span>PREORDERS</span><span>#TBD</span></div>
+          <div class="ticket-body">
+            <p style="margin:0;color:var(--muted);">Handled separately from standard fulfilment — flagged in the original notes but process not written up yet. Add the steps once confirmed (see How-Tos).</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 03 PRICING & TAX -->
+    <section class="section" id="knowledge">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Bin 03</div>
+          <h2>Pricing &amp; Tax</h2>
+        </div>
+        <div class="barcode" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+
+      <div class="ticket">
+        <div class="ticket-head"><span>TRADING MARGIN — WORKED EXAMPLE</span><span>#RUNNER</span></div>
+        <div class="ticket-body">
+          <ul class="tasklist">
+            <li><span class="dot"></span><div><b>Product:</b> Running shoe</div></li>
+            <li><span class="dot"></span><div><b>Sale price:</b> £100</div></li>
+            <li><span class="dot"></span><div><b>Cost:</b> £50</div></li>
+            <li><span class="dot"></span><div><b>Discount applied:</b> 19%</div></li>
+            <li><span class="dot"></span><div><b>Resulting figure noted:</b> £31 <span class="pill amber">confirm this</span></div></li>
+          </ul>
+          <div class="todo-flag">⚑ The original note stops at "£31" without saying whether that's margin, profit, or something else. Confirm the actual calculation with whoever trained you and update this card.</div>
+        </div>
+      </div>
+
+      <div class="ticket">
+        <div class="ticket-head"><span>TAX RULES</span><span>#SHOPIFY</span></div>
+        <div class="ticket-body">
+          <ul class="tasklist">
+            <li><span class="dot"></span><div><b>Charge tax on adult items.</b></div></li>
+            <li><span class="dot"></span><div><b>Do not charge tax on kids' clothing.</b><span class="note">Check the tax field on the product in Shopify to confirm it's set correctly.</span></div></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 FRUSTRATIONS -->
+    <section class="section" id="frustrations">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Bin 04</div>
+          <h2>Frustrations &amp; Fixes</h2>
+        </div>
+        <div class="barcode" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+
+      <div class="ticket">
+        <div class="ticket-head"><span>ISSUE</span><span class="pill red">Open</span></div>
+        <div class="ticket-body">
+          <ul class="tasklist">
+            <li><span class="dot"></span><div><b>Delayed stock</b><span class="note">Recurring problem — shipments arriving later than planned.</span></div></li>
+          </ul>
+          <div class="todo-flag">✓ Resolved from earlier notes: "Plan of action → Get products listed on…" was the start of the full New Product Listing process — now written up properly in <b>Bin 09 — Inventory Processes</b>.</div>
+        </div>
+      </div>
+
+      <div class="ticket">
+        <div class="ticket-head"><span>ISSUE</span><span class="pill red">Open</span></div>
+        <div class="ticket-body">
+          <ul class="tasklist">
+            <li><span class="dot"></span><div><b>SKUs not matching between purchase orders and inbound stock</b><span class="note">Flagged directly in the inbound process notes — causes rework every time new stock arrives. Needs a root-cause fix, not another workaround.</span></div></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="ticket">
+        <div class="ticket-head"><span>ISSUE</span><span class="pill red">Open</span></div>
+        <div class="ticket-body">
+          <ul class="tasklist">
+            <li><span class="dot"></span><div><b>No bulk print for packing slips or DPD shipping labels</b><span class="note">Currently one at a time. Worth checking Shopify's native bulk fulfilment/print options and the DPD app's own bulk label feature before assuming a third-party app is needed.</span></div></li>
+          </ul>
+        </div>
+      </div>
+      <p style="color:var(--muted);font-size:13px;">Use this section as a running log — when something slows you down or breaks, add it here with what actually fixed it, so it doesn't need re-solving next time.</p>
+    </section>
+
+    <!-- 05 HOW-TOS -->
+    <section class="section" id="howto">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Bin 05</div>
+          <h2>How-Tos</h2>
+        </div>
+        <div class="barcode" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+      <p style="color:var(--muted);font-size:13px;margin-top:-10px;">Step-by-step write-ups for anything you have to look up more than once. Click a title to expand and edit — it saves automatically.</p>
+
+      <div id="howtoList"></div>
+
+      <div class="add-row">
+        <input id="howtoTitleInput" type="text" placeholder="New how-to title, e.g. 'How to process a duplicate barcode'">
+        <button class="btn" onclick="addHowto()">Add</button>
+      </div>
+    </section>
+
+    <!-- 06 PLANNING -->
+    <section class="section" id="planning">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Bin 06</div>
+          <h2>Project Planning</h2>
+        </div>
+        <div class="barcode" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+      <p style="color:var(--muted);font-size:13px;margin-top:-10px;">Drag cards between columns. Good place to track bundles for peak, upsell ideas, and anything from the frustrations log that needs a proper fix.</p>
+
+      <div class="board" id="board">
+        <div class="col" data-col="ideas">
+          <div class="col-head"><span>Ideas</span><span class="count" id="count-ideas">0</span></div>
+          <div class="col-body" id="body-ideas"></div>
+          <div class="col-add"><input placeholder="Add a card…" data-col="ideas"><button onclick="addCard('ideas', this)">+</button></div>
+        </div>
+        <div class="col" data-col="doing">
+          <div class="col-head"><span>In Progress</span><span class="count" id="count-doing">0</span></div>
+          <div class="col-body" id="body-doing"></div>
+          <div class="col-add"><input placeholder="Add a card…" data-col="doing"><button onclick="addCard('doing', this)">+</button></div>
+        </div>
+        <div class="col" data-col="done">
+          <div class="col-head"><span>Done</span><span class="count" id="count-done">0</span></div>
+          <div class="col-body" id="body-done"></div>
+          <div class="col-add"><input placeholder="Add a card…" data-col="done"><button onclick="addCard('done', this)">+</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 07 GOOGLE SHOPPING -->
+    <section class="section" id="gshopping">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Bin 07 · Project</div>
+          <h2>Google Shopping Setup</h2>
+        </div>
+        <div class="barcode" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+      <p style="color:var(--muted);font-size:13px;margin-top:-10px;">Route: Shopify's <b>Google &amp; YouTube</b> channel → <b>Google Merchant Center</b> (the feed) → optional <b>Google Ads</b> (paid) and <b>GA4</b> (tracking). Active setup ~30–60 min. First sync up to 24hrs. Google review after that takes several business days — products won't be live same-day.</p>
+
+      <div class="ticket">
+        <div class="ticket-head"><span>BEFORE YOU START — CHECKLIST</span><span>#PREP</span></div>
+        <div class="ticket-body">
+          <ul class="tasklist">
+            <li><span class="dot"></span><div><b>Dedicated Google account</b> for the business<span class="note">Not a personal Gmail — cleaner for account recovery and permissions.</span></div></li>
+            <li><span class="dot"></span><div><b>Shopify admin access</b><span class="note">Sales channels, Marketing, Discounts, Manage settings, Apps and channels.</span></div></li>
+            <li><span class="dot"></span><div><b>Policy pages set up properly</b><span class="note">Refund policy + Terms of Service under Settings → Policies (not standalone pages), linked in the footer using the "Policies" link type.</span></div></li>
+            <li><span class="dot"></span><div><b>Visible contact info</b> on the storefront<span class="note">At least one of: phone, email, address, or contact form.</span></div></li>
+            <li><span class="dot"></span><div><b>Product data in shape</b><span class="note">Every product needs a description, a clean image (no watermarks/promo text), ideally a barcode (GTIN).</span></div></li>
+            <li><span class="dot"></span><div><b>Shipping zones configured</b> in Shopify for target countries</div></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="ticket">
+        <div class="ticket-head"><span>SETUP — STEP BY STEP</span><span>#SETUP</span></div>
+        <div class="ticket-body">
+          <div class="flow">
+            <div class="flow-step">
+              <div class="flow-num">1</div>
+              <div><h4>Install &amp; connect the channel</h4><p>Shopify admin → Sales channels → Google &amp; YouTube. Connect the dedicated Google account, allow access, fix anything on the setup requirements checklist.</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">2</div>
+              <div><h4>Connect Merchant Center</h4><p>Select or create an account → verify by phone (6-digit SMS code) → verify domain (usually automatic; if not, paste the HTML tag into <code>theme.liquid</code> below &lt;head&gt;).</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">3</div>
+              <div><h4>Countries, languages &amp; shipping</h4><p>Countries/languages auto-sync from Shopify Markets by default. For shipping, choose automatic import (from your General shipping profile) or set rates manually in Merchant Center.</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">4</div>
+              <div><h4>Let it sync, then clear errors</h4><p>Check Merchant Center → Diagnostics as soon as products appear. Fix missing descriptions, images, GTIN/MPN, promo overlays, ALL-CAPS titles. Nothing shows until errors clear. "Pending" for a few days is normal.</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">5</div>
+              <div><h4>Free listings go live</h4><p>Once approved: Shopping tab, Google Search, Images, Lens — automatic, no extra step.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="ticket">
+          <div class="ticket-head"><span>OPTIONAL — PAID (PERFORMANCE MAX)</span><span>#ADS</span></div>
+          <div class="ticket-body">
+            <ul class="tasklist">
+              <li><span class="dot"></span><div>Connect a Google Ads account (must be admin on it)</div></li>
+              <li><span class="dot"></span><div>Set up a Performance Max campaign linked to Merchant Center — runs across Search, Shopping, Display, YouTube, Discover, Gmail</div></li>
+              <li><span class="dot"></span><div>Set a daily budget your own margins support before switching this on<span class="note">Don't treat any online "recommended" figure as a rule.</span></div></li>
+              <li><span class="dot"></span><div>Weekly: check search terms report, add negative keywords</div></li>
+            </ul>
+          </div>
+        </div>
+        <div class="ticket">
+          <div class="ticket-head"><span>TRACKING</span><span>#REPORT</span></div>
+          <div class="ticket-body">
+            <ul class="tasklist">
+              <li><span class="dot"></span><div><b>Merchant Center Diagnostics</b><span class="note">Check weekly while new — approvals, disapprovals, errors.</span></div></li>
+              <li><span class="dot"></span><div><b>GA4</b><span class="note">Connect via same channel — on-site behaviour, conversion rate, revenue by channel.</span></div></li>
+              <li><span class="dot"></span><div><b>Google Ads conversion tracking</b><span class="note">Auto-set up when Ads is connected — cost-per-conversion, ROAS.</span></div></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="todo-flag">⚑ Check first whether the business already has a Google account tied to Merchant Center or Ads from a previous setup, before creating a new one. Connecting fresh when the domain's already claimed elsewhere is the most common early snag ("domain claimed on a different account").</div>
+
+      <div class="ticket" style="margin-top:16px;">
+        <div class="ticket-head"><span>RESOURCES</span><span>#LINKS</span></div>
+        <div class="ticket-body">
+          <ul class="tasklist">
+            <li><span class="dot"></span><div><a href="https://help.shopify.com/en/manual/online-sales-channels/marketplaces/google/getting-setup/connect" target="_blank" style="color:var(--amber);">Shopify Help — Set up the Google &amp; YouTube channel</a><span class="note">Official step-by-step + full troubleshooting section.</span></div></li>
+            <li><span class="dot"></span><div><a href="https://help.shopify.com/en/manual/online-sales-channels/marketplaces/google/requirements" target="_blank" style="color:var(--amber);">Shopify Help — Channel requirements</a></div></li>
+            <li><span class="dot"></span><div><a href="https://help.shopify.com/en/manual/online-sales-channels/marketplaces/google/getting-setup/product-disapprovals-warnings" target="_blank" style="color:var(--amber);">Shopify Help — Product disapprovals &amp; warnings</a></div></li>
+            <li><span class="dot"></span><div><a href="https://support.google.com/merchants/topic/13402337" target="_blank" style="color:var(--amber);">Google Merchant Center Help</a></div></li>
+            <li><span class="dot"></span><div><a href="https://apps.shopify.com/google" target="_blank" style="color:var(--amber);">Google &amp; YouTube app — Shopify App Store</a></div></li>
+            <li><span class="dot"></span><div><a href="https://support.google.com/google-ads/answer/13511491" target="_blank" style="color:var(--amber);">Google Ads Help — Performance Max campaigns</a></div></li>
+          </ul>
+        </div>
+      </div>
+      <div class="ticket" style="margin-top:16px;">
+        <div class="ticket-head"><span>PROJECT NOTES</span><span>#LIVE</span></div>
+        <div class="ticket-body">
+          <p style="margin:0 0 10px;color:var(--muted);font-size:12.5px;">Freeform — what's blocking this, decisions made, what's needed to move it forward. Saves as you type.</p>
+          <textarea id="gshoppingNotes" style="width:100%;min-height:140px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Inter',sans-serif;font-size:13px;padding:12px;border-radius:2px;resize:vertical;" placeholder="e.g. Need to create business Gmail before we can connect Merchant Center. Waiting on..."></textarea>
+          <span class="save-hint" style="font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;display:block;margin-top:6px;">Saves as you type</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 08 META ADS -->
+    <section class="section" id="metaads">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Bin 08 · Project</div>
+          <h2>Meta Ads (Facebook &amp; Instagram)</h2>
+        </div>
+        <div class="barcode" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+      <p style="color:var(--muted);font-size:13px;margin-top:-10px;">Route: Shopify's <b>Facebook &amp; Instagram by Meta</b> sales channel → one shared product catalog → feeds Facebook Shop, Instagram, product tags on organic posts, and Meta Ads Manager. Same catalog powers both the ads you pay for and the products you tag for free in posts/reels.</p>
+
+      <div class="todo-flag">⚑ Since 26 Aug 2025, Meta is no longer a marketplace tax facilitator — <b>we</b> collect and remit tax on any Facebook/Instagram orders now, same as the website. Check Settings → Taxes and Duties before switching this on. Customers also now complete checkout on our actual Shopify store, not inside the Facebook/Instagram app.</div>
+
+      <div class="ticket">
+        <div class="ticket-head"><span>BEFORE YOU START — CHECKLIST</span><span>#PREP</span></div>
+        <div class="ticket-body">
+          <ul class="tasklist">
+            <li><span class="dot"></span><div><b>Facebook account</b> + a published Facebook Business Page for the business</div></li>
+            <li><span class="dot"></span><div><b>Instagram professional/creator account</b> linked to that Page<span class="note">Needed if we want to tag products or run ads on Instagram too.</span></div></li>
+            <li><span class="dot"></span><div><b>Business Portfolio (Meta Business Manager)</b> that owns the Page<span class="note">If a different portfolio owns the Page, it won't show up as connectable — worth confirming this before starting.</span></div></li>
+            <li><span class="dot"></span><div><b>Ad account</b> sitting in that same business portfolio<span class="note">Shopify can create one during setup if we don't have it yet.</span></div></li>
+            <li><span class="dot"></span><div><b>Shopify store not password-protected</b>, and a valid sender email set in store settings</div></li>
+            <li><span class="dot"></span><div><b>Tax settings configured</b> for Facebook/Instagram orders<span class="note">See flag above.</span></div></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="ticket">
+        <div class="ticket-head"><span>SETUP — STEP BY STEP</span><span>#SETUP</span></div>
+        <div class="ticket-body">
+          <div class="flow">
+            <div class="flow-step">
+              <div class="flow-num">1</div>
+              <div><h4>Install the channel</h4><p>Shopify admin → Settings → Apps and sales channels → Shopify App Store → search "Facebook and Instagram by Meta" → Add channel.</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">2</div>
+              <div><h4>Connect Meta account &amp; assets</h4><p>Click Connect account, sign into Facebook. Connect the business portfolio, Facebook Page, Instagram account, and ad account. Create any that don't exist yet.</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">3</div>
+              <div><h4>Choose Maximum data sharing</h4><p>Shopify offers Standard / Enhanced / Maximum. Choose <b>Maximum</b> — this turns on the Conversions API alongside the browser Pixel, which matters a lot for tracking accuracy (see below).</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">4</div>
+              <div><h4>Let the catalog sync</h4><p>Eligible products sync automatically into one shared catalog feeding Facebook Shop, Instagram, and ads. Initial review/approval can take up to 24 hours.</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">5</div>
+              <div><h4>Confirm the Pixel is firing</h4><p>In Meta Events Manager, browse the store, add something to cart, and check that PageView, AddToCart, and Purchase events show as received. Can take anywhere from 20 minutes to a few hours to show "Active" — don't panic if it's quiet at first.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ticket">
+        <div class="ticket-head"><span>TAGGING PRODUCTS IN POSTS</span><span>#ORGANIC</span></div>
+        <div class="ticket-body">
+          <p style="margin:0;color:var(--muted);">Once the catalog's synced, products can be tagged directly in Instagram/Facebook posts, reels, and stories — same as any shoppable tag you've seen elsewhere. Tapping the tag shows price and links straight through to the product on the store. This works whether or not we're running paid ads on that post — it's free, and worth doing on every product post by default once it's live.</p>
+        </div>
+      </div>
+
+      <div class="ticket">
+        <div class="ticket-head"><span>TRACKING RETURN ON AD SPEND</span><span>#ROAS</span></div>
+        <div class="ticket-body">
+          <ul class="tasklist">
+            <li><span class="dot"></span><div><b>Run Pixel + Conversions API together, not just Pixel</b><span class="note">Browser-only tracking misses an estimated 20–40% of conversions now, due to iOS privacy settings and ad blockers. CAPI sends the same purchase/add-to-cart events straight from Shopify's servers, so we still see them.</span></div></li>
+            <li><span class="dot"></span><div><b>Check Event Match Quality</b> in Meta Events Manager before spending real budget<span class="note">A low score means Meta can't reliably match ad clicks to real store visitors — fix this before scaling spend.</span></div></li>
+            <li><span class="dot"></span><div><b>Don't take Meta's reported ROAS as gospel</b><span class="note">Meta tends to over-attribute conversions to itself. Cross-check against Shopify's own numbers (Analytics → Reports → Sessions by traffic source, and actual order revenue) for a more honest read.</span></div></li>
+            <li><span class="dot"></span><div><b>Track blended ROAS too</b><span class="note">Total store revenue ÷ total ad spend across every platform (Meta + Google, once that's running). Catches cases where Meta and Google are both claiming credit for the same sale.</span></div></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="ticket">
+          <div class="ticket-head"><span>CAMPAIGN STRUCTURE — STARTING POINT</span><span>#SETUP</span></div>
+          <div class="ticket-body">
+            <ul class="tasklist">
+              <li><span class="dot"></span><div>Start with a manual campaign, not Advantage+ Shopping<span class="note">Advantage+ needs 3+ proven creative winners before it has enough signal to optimise well — too early on day one.</span></div></li>
+              <li><span class="dot"></span><div>Test a small number of creatives/audiences first, let data build, then scale what's working</div></li>
+              <li><span class="dot"></span><div>Move to Advantage+ Shopping once we have real winners to feed it</div></li>
+            </ul>
+          </div>
+        </div>
+        <div class="ticket">
+          <div class="ticket-head"><span>REPORTING CADENCE</span><span>#REPORT</span></div>
+          <div class="ticket-body">
+            <ul class="tasklist">
+              <li><span class="dot"></span><div><b>Weekly:</b> spend, purchases, cost per purchase, ROAS by campaign, best/worst creative</div></li>
+              <li><span class="dot"></span><div><b>Monthly:</b> blended ROAS across all platforms, contribution to total store revenue</div></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="ticket">
+        <div class="ticket-head"><span>CAMPAIGN STRATEGY — RETARGETING FIRST</span><span>#PHASED</span></div>
+        <div class="ticket-body">
+          <p style="margin:0 0 12px;color:var(--muted);">With a small, unproven budget, don't spread it across broad "find new customers" campaigns yet. Start with the audience that already knows the shop — it converts far better and proves ROAS fastest.</p>
+          <div class="flow">
+            <div class="flow-step">
+              <div class="flow-num">1</div>
+              <div><h4>Phase 1 (weeks 1–2) — Retargeting</h4><p><b>Audience:</b> website visitors (last 30/90 days), email list uploaded as a Custom Audience, Facebook Page engagers/followers.<br><b>Budget:</b> even £10–20/day is enough — warm audiences convert well on small spend.<br><b>Creative:</b> dynamic product ads showing items people viewed but didn't buy, or a simple "come back — 10% off" offer.</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">2</div>
+              <div><h4>Phase 2 (weeks 2–4) — Lookalike prospecting</h4><p>Build a 1–3% Lookalike Audience from the existing customer list or website purchasers. Small daily budget, single objective (Purchases), let Meta's algorithm optimise. Only start this once Phase 1 has real data — don't split a tiny budget across both from day one.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="ticket">
+          <div class="ticket-head"><span>IN-STORE ATTRIBUTION</span><span>#TRICKY</span></div>
+          <div class="ticket-body">
+            <p style="margin:0 0 10px;color:var(--muted);font-size:12.5px;">Online ROAS is straightforward via the Pixel — in-store is the harder problem, since a customer can see an ad and just walk in.</p>
+            <ul class="tasklist">
+              <li><span class="dot"></span><div>Unique discount code or "show this ad" offer, redeemable in-store, so redemptions can be counted directly</div></li>
+              <li><span class="dot"></span><div>Meta Offline Conversions API, or a manual upload of in-store transaction data matched against ad-exposed customers, if the POS can export it</div></li>
+              <li><span class="dot"></span><div>Simplest option: pick one campaign, one offer, one time window, and compare in-store revenue for that period against the same period last month/last year</div></li>
+            </ul>
+          </div>
+        </div>
+        <div class="ticket">
+          <div class="ticket-head"><span>SET UP BEFORE SPENDING ANYTHING</span><span>#CHECK</span></div>
+          <div class="ticket-body">
+            <ul class="tasklist">
+              <li><span class="dot"></span><div>Meta Pixel installed and confirmed firing correctly<span class="note">Test this first — bad tracking means no provable ROAS, whatever else is right.</span></div></li>
+              <li><span class="dot"></span><div>Custom Audiences uploaded — email list, website visitors</div></li>
+              <li><span class="dot"></span><div>One clear conversion event defined (Purchase), so the ROAS math is unambiguous</div></li>
+              <li><span class="dot"></span><div>A tracking sheet — spend, revenue attributed, ROAS, updated weekly</div></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="ticket">
+        <div class="ticket-head"><span>CATALOG / DYNAMIC PRODUCT ADS — SETUP</span><span>#CATALOG</span></div>
+        <div class="ticket-body">
+          <p style="margin:0 0 12px;color:var(--muted);">This is what makes a Facebook post or ad automatically show catalogue photos, prices, and a working link straight to the product page — a Catalog Sales (dynamic product ads) campaign.</p>
+          <div class="flow">
+            <div class="flow-step">
+              <div class="flow-num">1</div>
+              <div><h4>Commerce Manager catalog</h4><p>business.facebook.com/commerce → create an "E-commerce" catalog. <b>Since we're already connecting via Shopify's own Facebook &amp; Instagram channel (setup steps above), the catalog syncs automatically — no need for a manual feed or upload.</b></p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">2</div>
+              <div><h4>Confirm Pixel/CAPI is tracking product views</h4><p>This is what lets Meta match "viewed this product" to "show them this product in an ad." Already covered in the setup steps above — just worth re-checking here since dynamic ads depend on it.</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">3</div>
+              <div><h4>Create the ad</h4><p>Ads Manager → new campaign → objective <b>Sales</b> → at ad set level choose <b>Catalog</b> and select the catalog → pick the audience (retargeting, or Advantage+ catalog audience for prospecting) → carousel or collection format at ad level. Meta auto-generates the creative from the catalog.</p></div>
+            </div>
+          </div>
+          <div class="todo-flag">⚑ Faster first test: skip the full dynamic setup initially and run a manual carousel ad instead — pick 3–10 products, upload photos, write titles/prices, link each card to its product page. No catalog dependency, launches same week. Move to full dynamic catalog ads once the approach is validated and it's time to scale.</div>
+        </div>
+      </div>
+
+      <div class="ticket" style="margin-top:16px;">
+        <div class="ticket-head"><span>RESOURCES</span><span>#LINKS</span></div>
+        <div class="ticket-body">
+          <ul class="tasklist">
+            <li><span class="dot"></span><div><a href="https://help.shopify.com/en/manual/online-sales-channels/social-commerce/facebook-instagram-by-meta/setup" target="_blank" style="color:var(--amber);">Shopify Help — Setting up Facebook and Instagram by Meta</a></div></li>
+            <li><span class="dot"></span><div><a href="https://help.shopify.com/en/manual/online-sales-channels/facebook-instagram-by-meta/requirements-and-considerations" target="_blank" style="color:var(--amber);">Shopify Help — Requirements &amp; considerations</a></div></li>
+            <li><span class="dot"></span><div><a href="https://www.shopify.com/facebook-instagram" target="_blank" style="color:var(--amber);">Shopify — Sell on Facebook &amp; Instagram overview</a></div></li>
+            <li><span class="dot"></span><div><a href="https://www.shopify.com/blog/72787269-relax-advertising-on-facebook-just-got-a-lot-easier" target="_blank" style="color:var(--amber);">Shopify — Meta Pixel setup guide</a></div></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="ticket" style="margin-top:16px;">
+        <div class="ticket-head"><span>PROJECT NOTES</span><span>#LIVE</span></div>
+        <div class="ticket-body">
+          <p style="margin:0 0 10px;color:var(--muted);font-size:12.5px;">Freeform — what's blocking this, decisions made, what's needed to move it forward. Saves as you type.</p>
+          <textarea id="metaadsNotes" style="width:100%;min-height:140px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Inter',sans-serif;font-size:13px;padding:12px;border-radius:2px;resize:vertical;" placeholder="e.g. Need to confirm who owns the Facebook Business Page before we can connect..."></textarea>
+          <span class="save-hint" style="font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;display:block;margin-top:6px;">Saves as you type</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 09 INVENTORY PROCESSES -->
+    <section class="section" id="inventory">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Bin 09</div>
+          <h2>Inventory Processes</h2>
+        </div>
+        <div class="barcode" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+      <p style="color:var(--muted);font-size:13px;margin-top:-10px;">The stock-side processes — separate from order fulfilment in Bin 02. These cover getting new products listed, taking discontinued ones down, labelling, and receiving inbound stock.</p>
+
+      <div class="ticket">
+        <div class="ticket-head"><span>NEW PRODUCT LISTING</span><span>#LISTING</span></div>
+        <div class="ticket-body">
+          <div class="flow">
+            <div class="flow-step">
+              <div class="flow-num">1</div>
+              <div><h4>Digital PO comes in via the app</h4><p>Purchase order arrives digitally rather than on paper for this route.</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">2</div>
+              <div><h4>Check if the product already exists in Shopify</h4><p>If it doesn't, <b>pause the process</b> until the product record is fully set up — don't try to work around a missing product.</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">3</div>
+              <div><h4>Create the Purchase Order</h4><p>Include inventory numbers on the PO.</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">4</div>
+              <div><h4>Print barcode labels</h4><p>Using the inventory numbers from the PO.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ticket">
+        <div class="ticket-head"><span>REMOVING PRODUCTS</span><span>#DELIST</span></div>
+        <div class="ticket-body">
+          <div class="flow">
+            <div class="flow-step">
+              <div class="flow-num">1</div>
+              <div><h4>Scan the sheet listing products to remove</h4></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">2</div>
+              <div><h4>Extract product details from the sheet</h4></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">3</div>
+              <div><h4>Search Shopify with all the SKUs</h4><p>Bulk select/tag the matches, then bulk edit.</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">4</div>
+              <div><h4>Check for anything that didn't match</h4><p>Extract and deal with these separately rather than letting them fall through.</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">5</div>
+              <div><h4>Set to draft and zero inventory</h4><p>Applied to all confirmed matches.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ticket">
+        <div class="ticket-head"><span>PRINTING LABELS</span><span>#LABELS</span></div>
+        <div class="ticket-body">
+          <div class="flow">
+            <div class="flow-step">
+              <div class="flow-num">1</div>
+              <div><h4>Check if a barcode already exists</h4><p>If not, create one.</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">2</div>
+              <div><h4>Add all SKUs</h4></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">3</div>
+              <div><h4>Click product barcodes</h4></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">4</div>
+              <div><h4>Print labels</h4></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">5</div>
+              <div><h4>Give to staff</h4></div>
+            </div>
+          </div>
+          <div class="todo-flag">⚑ Original note ends at "Once given." — fill in what happens after handoff (e.g. where they get applied, any confirmation step) once you've got it.</div>
+        </div>
+      </div>
+
+      <div class="ticket">
+        <div class="ticket-head"><span>NEW INVENTORY INBOUND</span><span>#INBOUND</span></div>
+        <div class="ticket-body">
+          <div class="flow">
+            <div class="flow-step">
+              <div class="flow-num">1</div>
+              <div><h4>Receive the order document (paper)</h4></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">2</div>
+              <div><h4>Check products and variants exist in Shopify</h4><p>If any don't, create them before going further.</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">3</div>
+              <div><h4>Create labels first, to clear stock off the floor</h4><p>Check for barcode duplicates, create any missing barcodes, print labels.</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">4</div>
+              <div><h4>Create the purchase orders</h4><p>Match SKUs to what's in Shopify, select those products.</p></div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-num">5</div>
+              <div><h4>Add units from the source data</h4><p>Take inventory numbers from the sheet, select all products that were inbound.</p></div>
+            </div>
+          </div>
+          <div class="todo-flag">⚑ Two known issues flagged directly in the original notes: (1) SKUs don't always match what's on the purchase order — tracked as an open frustration in Bin 04. (2) This whole process is described as repeatable but currently manual each time — "repeatable process needs fixed" was the exact note. Worth a proper look at automating the PO ↔ Shopify SKU match rather than doing it by hand every delivery.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 10 CONTENT STRATEGY -->
+    <section class="section" id="content">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Bin 10</div>
+          <h2>Content Strategy &amp; Platforms</h2>
+        </div>
+        <div class="barcode" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+      <p style="color:var(--muted);font-size:13px;margin-top:-10px;">What to actually post, and where to expand once Meta is working. Complements Bin 08 — this is the content side, that's the ads/tracking side.</p>
+
+      <div class="ticket">
+        <div class="ticket-head"><span>WHAT TO POST — WHAT ACTUALLY DRIVES SALES</span><span>#CONTENT</span></div>
+        <div class="ticket-body">
+          <ul class="tasklist">
+            <li><span class="dot"></span><div><b>Social proof / UGC</b><span class="note">Repost customers using the gear (with permission, tag them). Outperforms polished product shots — reads as authentic, not an ad. A simple "tag us wearing it" discount incentive helps generate this.</span></div></li>
+            <li><span class="dot"></span><div><b>Behind-the-scenes / staff picks</b><span class="note">e.g. "our top 3 picks for 5-a-side this month." Builds trust — positions the shop as expert, not just a seller.</span></div></li>
+            <li><span class="dot"></span><div><b>Problem/solution posts</b><span class="note">"Struggling with X (blisters, grip, weight) → here's what fixes it." Ties the post directly to a purchase reason.</span></div></li>
+            <li><span class="dot"></span><div><b>Urgency/scarcity — sparingly</b><span class="note">Limited stock, end-of-season, "last sizes." Works occasionally; overuse erodes trust.</span></div></li>
+            <li><span class="dot"></span><div><b>Local/community tie-ins</b><span class="note">Sponsoring a local team, posting club results, tagging local sports groups. Often the highest-converting content for a physical shop — hyper-relevant to nearby customers.</span></div></li>
+            <li><span class="dot"></span><div><b>Short-form video demos</b><span class="note">15–30 sec: unboxing, "how to choose the right size," product in use. Gets more reach than static photos on every platform right now.</span></div></li>
+            <li><span class="dot"></span><div><b>Consistency over production value</b><span class="note">3–4x/week of basic-but-real content beats one perfect post a month.</span></div></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="ticket">
+          <div class="ticket-head"><span>CONTENT MIX TARGET</span><span>#RATIO</span></div>
+          <div class="ticket-body">
+            <ul class="tasklist">
+              <li><span class="dot"></span><div><b>40%</b> product/offer posts</div></li>
+              <li><span class="dot"></span><div><b>30%</b> educational / "how to choose" content</div></li>
+              <li><span class="dot"></span><div><b>20%</b> community/UGC</div></li>
+              <li><span class="dot"></span><div><b>10%</b> behind-the-scenes</div></li>
+            </ul>
+            <p style="margin:10px 0 0;color:var(--muted);font-size:12px;">Keeps the feed from reading as a constant sales pitch — which tends to hurt conversion, not help it.</p>
+          </div>
+        </div>
+        <div class="ticket">
+          <div class="ticket-head"><span>PLATFORM EXPANSION</span><span>#WHERE-NEXT</span></div>
+          <div class="ticket-body">
+            <ul class="tasklist">
+              <li><span class="dot"></span><div><b>Instagram</b> — first move<span class="note">Meta-native, so the Facebook ads/catalog setup carries straight over. Reels get strong organic reach; sports/fitness content does well here.</span></div></li>
+              <li><span class="dot"></span><div><b>TikTok</b> — worth testing if the customer base skews younger<span class="note">Strong for short demo/UGC content. Has its own ad platform with catalog ads similar to Meta's.</span></div></li>
+              <li><span class="dot"></span><div><b>Google Business Profile / Google Shopping</b> — high intent<span class="note">People searching "[product] [town]" are ready to buy now. Complements social, doesn't replace it — see Bin 07.</span></div></li>
+              <li><span class="dot"></span><div><b>Pinterest</b> — better fit for apparel/style-driven lines<span class="note">Less relevant for pure equipment.</span></div></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="todo-flag">⚑ Given the conservative-budget, prove-ROAS-first approach in Bin 08: stick to Meta (Facebook + Instagram together) until that's working and profitable, then expand to TikTok once there's a validated process worth scaling. Don't spread thin across every platform at once.</div>
+    </section>
+
+    <div class="origin-note">Seeded from your training notes on 28 Jul 2026. Edit any section's HTML directly to correct or expand the reference material — How-Tos and Project Planning are editable in the browser.</div>
+  </main>
+</div>
+
+<script>
+  // ---------- nav ----------
+  document.querySelectorAll('.nav-item').forEach(item=>{
+    item.addEventListener('click', ()=>{
+      document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+      item.classList.add('active');
+      document.getElementById(item.dataset.target).classList.add('active');
+    });
+  });
+
+  // ---------- storage helpers ----------
+  function load(key, fallback){
+    try{
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    }catch(e){ return fallback; }
+  }
+  function save(key, value){
+    try{ localStorage.setItem(key, JSON.stringify(value)); }catch(e){}
+  }
+
+  // ---------- how-tos ----------
+  const defaultHowtos = [
+    { id: 'h1', title: 'How to fulfil a standard DPD order', body: 'Print packing slip → Fulfil via DPD → View Label > Prints > Designer ZPL → attach label and dispatch.' },
+    { id: 'h2', title: 'How to log a Happy appointment (gait analysis)', body: 'These come through as regular orders. When you spot one: post it in the group chat and assign it to Dermot or Colleen.' },
+    { id: 'h3', title: 'How to raise a purchase order', body: 'Create the PO in the purchase order manager. When stock arrives, check it against the PO. If anything is off, contact the supplier directly.' }
+  ];
+  let howtos = load('ops_howtos', null);
+  if(!howtos){ howtos = defaultHowtos; save('ops_howtos', howtos); }
+
+  function renderHowtos(){
+    const list = document.getElementById('howtoList');
+    list.innerHTML = '';
+    howtos.forEach(h=>{
+      const el = document.createElement('details');
+      el.className = 'howto';
+      el.innerHTML = `
+        <summary>${h.title}</summary>
+        <div class="howto-body">
+          <textarea data-id="${h.id}">${h.body}</textarea>
+          <div class="howto-meta">
+            <span class="save-hint">Saves as you type</span>
+            <button class="del-btn" onclick="deleteHowto('${h.id}')">Delete</button>
+          </div>
+        </div>`;
+      list.appendChild(el);
+    });
+    list.querySelectorAll('textarea').forEach(t=>{
+      t.addEventListener('input', ()=>{
+        const h = howtos.find(x=>x.id===t.dataset.id);
+        if(h){ h.body = t.value; save('ops_howtos', howtos); }
+      });
+    });
+  }
+  function addHowto(){
+    const input = document.getElementById('howtoTitleInput');
+    const title = input.value.trim();
+    if(!title) return;
+    howtos.push({ id: 'h'+Date.now(), title, body: '' });
+    save('ops_howtos', howtos);
+    input.value = '';
+    renderHowtos();
+  }
+  function deleteHowto(id){
+    howtos = howtos.filter(h=>h.id!==id);
+    save('ops_howtos', howtos);
+    renderHowtos();
+  }
+  renderHowtos();
+
+  // ---------- kanban ----------
+  const defaultBoard = {
+    ideas: [
+      { id:'c1', text:'Bundle plan for peak season', notes:'' },
+      { id:'c2', text:'Essential Upsell — review opportunities', notes:'' },
+      { id:'c7', text:'Fix bulk print for packing slips + DPD shipping labels — see Bin 04', notes:'' },
+      { id:'c8', text:'Fix SKU mismatch between POs and inbound stock — see Bin 09', notes:'' }
+    ],
+    doing: [
+      { id:'c3', text:'Fix root cause of delayed stock', notes:'' },
+      { id:'c4', text:'Get Shopify products live on Google Shopping — see Bin 07', notes:'' },
+      { id:'c5', text:'Google — decide on admin email + migrate off the old one', notes:'Currently using a personal email (belongs to one of the workers) for the Google Business Profile. Need to: 1) create a dedicated business Gmail, 2) decide if we move Business Profile + Merchant Center + Ads onto it, 3) add the worker as Admin rather than owner on the new account.' },
+      { id:'c6', text:'Meta Ads — connect Facebook & Instagram channel, set up Pixel + CAPI — see Bin 08', notes:'' }
+    ],
+    done: []
+  };
+  let board = load('ops_board', null) || defaultBoard;
+
+  function renderBoard(){
+    ['ideas','doing','done'].forEach(col=>{
+      const body = document.getElementById('body-'+col);
+      body.innerHTML = '';
+      board[col].forEach(card=>{
+        if(card.notes === undefined) card.notes = '';
+        const el = document.createElement('div');
+        el.className = 'card';
+        el.draggable = true;
+        el.dataset.id = card.id;
+        el.dataset.col = col;
+        const hasNote = card.notes && card.notes.trim().length > 0;
+        el.innerHTML = `
+          <div class="card-text">${card.text}</div>
+          <span class="card-x" onclick="deleteCard('${col}','${card.id}')">✕</span>
+          <div class="card-footer">
+            <button class="note-toggle ${hasNote ? 'has-note' : ''}" onclick="toggleNotes('${col}','${card.id}')">${hasNote ? '📝 note' : '+ add note'}</button>
+          </div>
+          <div class="card-notes" id="notes-${card.id}" style="display:none;">
+            <textarea placeholder="Add context, decisions, links…" data-id="${card.id}" data-col="${col}">${card.notes}</textarea>
+            <span class="save-hint">Saves as you type</span>
+          </div>`;
+        el.addEventListener('dragstart', e=>{
+          e.dataTransfer.setData('text/plain', JSON.stringify({id:card.id, from:col}));
+        });
+        body.appendChild(el);
+      });
+      document.getElementById('count-'+col).textContent = board[col].length;
+    });
+    // restore open notes state and wire up saving
+    document.querySelectorAll('.card-notes textarea').forEach(t=>{
+      t.addEventListener('input', ()=>{
+        const c = board[t.dataset.col].find(x=>x.id===t.dataset.id);
+        if(c){ c.notes = t.value; save('ops_board', board); }
+      });
+      t.addEventListener('click', e=>e.stopPropagation());
+    });
+    openNoteIds.forEach(id=>{
+      const el = document.getElementById('notes-'+id);
+      if(el) el.style.display = 'block';
+    });
+  }
+  const openNoteIds = new Set();
+  function toggleNotes(col, id){
+    const el = document.getElementById('notes-'+id);
+    if(!el) return;
+    const show = el.style.display === 'none';
+    el.style.display = show ? 'block' : 'none';
+    if(show){ openNoteIds.add(id); } else { openNoteIds.delete(id); }
+  }
+  document.querySelectorAll('.col-body').forEach(body=>{
+    body.addEventListener('dragover', e=>{ e.preventDefault(); body.classList.add('dragover'); });
+    body.addEventListener('dragleave', ()=> body.classList.remove('dragover'));
+    body.addEventListener('drop', e=>{
+      e.preventDefault();
+      body.classList.remove('dragover');
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      const toCol = body.id.replace('body-','');
+      if(data.from === toCol) return;
+      const idx = board[data.from].findIndex(c=>c.id===data.id);
+      if(idx > -1){
+        const [card] = board[data.from].splice(idx,1);
+        board[toCol].push(card);
+        save('ops_board', board);
+        renderBoard();
+      }
+    });
+  });
+  function addCard(col, btn){
+    const input = btn.previousElementSibling;
+    const text = input.value.trim();
+    if(!text) return;
+    board[col].push({ id:'c'+Date.now(), text, notes:'' });
+    save('ops_board', board);
+    input.value = '';
+    renderBoard();
+  }
+  function deleteCard(col, id){
+    board[col] = board[col].filter(c=>c.id!==id);
+    save('ops_board', board);
+    renderBoard();
+  }
+  document.querySelectorAll('.col-add input').forEach(inp=>{
+    inp.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){ addCard(inp.dataset.col, inp.nextElementSibling); }
+    });
+  });
+  renderBoard();
+
+  // ---------- gshopping project notes ----------
+  const gshoppingNotesEl = document.getElementById('gshoppingNotes');
+  gshoppingNotesEl.value = load('ops_gshopping_notes', '');
+  gshoppingNotesEl.addEventListener('input', ()=>{
+    save('ops_gshopping_notes', gshoppingNotesEl.value);
+  });
+
+  const metaadsNotesEl = document.getElementById('metaadsNotes');
+  metaadsNotesEl.value = load('ops_metaads_notes', '');
+  metaadsNotesEl.addEventListener('input', ()=>{
+    save('ops_metaads_notes', metaadsNotesEl.value);
+  });
+</script>
+</body>
+</html>
